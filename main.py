@@ -1,8 +1,30 @@
-from fastapi import FastAPI, Body
+from fastapi import FastAPI, Body, Path, Query
 from fastapi.responses import HTMLResponse
-
+from pydantic import BaseModel, Field
+from typing import Optional
 
 app = FastAPI()
+
+class Movie(BaseModel):
+    id: Optional[int] | None = None
+    title: str = Field(min_length = 3, max_length=30)
+    overview: str = Field(min_length = 15, max_length = 80)
+    year: int = Field(le = 2023, gt = 1900)
+    rating: float = Field(le = 10, gt = 0)
+    category: str = Field(min_length = 3, max_length = 30)
+
+    #Esta clase sirve para configurar los valores por defecto del Schema
+    class Config:
+        schema_extra = {
+            "example": {
+                "id": 12,
+                "title": "La película",
+                "overview": "Transcurre en el año 2050 cuando los autos son capaces de volar...",
+                "year": 2014,
+                "rating": 8.7,
+                "category": "Ciencia Ficción"
+            }
+        }
 
 movies = [
     {
@@ -51,47 +73,45 @@ def get_movies():
 
 #Usando paths
 @app.get("/movies/{id}", tags=["Movies"])
-def get_movie(id: int):
+def get_movie(id: int = Path(le=2000, gt=0)):
     finded_movie = list(filter(lambda mov: mov["id"] == id, movies))
     return "No se encontró la película" if not finded_movie else finded_movie[0]
 
 #Usando querys
 @app.get("/movies/", tags=["Movies"])
-def get_movies_by_category(category: str):
+def get_movies_by_category(category: str = Query(min_length = 3, max_length = 30)):
     finded_movie = list(filter(lambda mov: mov["category"] == category, movies))
     return "No existe esa categoría" if not finded_movie else finded_movie
 
 #Usando POST
 @app.post("/movies", tags=["Movies"])
-def set_movie(id: int = Body(), title: str = Body(), overview: str = Body(), year: int = Body(), rating: float = Body(),
-    category: str = Body()):
-    finded_movie = list(filter(lambda mov: mov["id"] == id, movies))
+def set_movie(movie: Movie = Body()):
+    finded_movie = list(filter(lambda mov: mov["id"] == movie.id, movies))
     
     if finded_movie:
         return "Error: Ya existe la película"
     
     movies.append({
-        'id': id,
-        'title': title,
-        'overview': overview,
-        'year': year,
-        'rating': rating,
-        'category': category
+        'id': movie.id,
+        'title': movie.title,
+        'overview': movie.overview,
+        'year': movie.year,
+        'rating': movie.rating,
+        'category': movie.category
     })
 
     return movies
 
 #Usando PUT
 @app.put("/movies/{id}", tags=["Movies"])
-def update_movie(id: int, title: str = Body(), overview: str = Body(), year: int = Body(), rating: float = Body(), 
-    category: str = Body()):
-    for movie in movies:
-        if movie["id"] == id:
-            movie['title'] = title
-            movie['overview'] = overview
-            movie['year'] = year
-            movie['rating'] = rating,
-            movie['category'] = category
+def update_movie(id: int, movie: Movie = Body()):
+    for mov in movies:
+        if mov["id"] == id:
+            mov['title'] = movie.title
+            mov['overview'] = movie.overview
+            mov['year'] = movie.year
+            mov['rating'] = movie.rating
+            mov['category'] = movie.category
             return movies
     
     return "Error: No existe la película"
