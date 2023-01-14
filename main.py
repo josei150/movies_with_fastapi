@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Body
 from fastapi.responses import HTMLResponse
 
 
@@ -60,3 +60,48 @@ def get_movie(id: int):
 def get_movies_by_category(category: str):
     finded_movie = list(filter(lambda mov: mov["category"] == category, movies))
     return "No existe esa categoría" if not finded_movie else finded_movie
+
+#Usando POST
+@app.post("/movies", tags=["Movies"])
+def set_movie(id: int = Body(), title: str = Body(), overview: str = Body(), year: int = Body(), rating: float = Body(),
+    category: str = Body()):
+    finded_movie = list(filter(lambda mov: mov["id"] == id, movies))
+    
+    if finded_movie:
+        return "Error: Ya existe la película"
+    
+    movies.append({
+        'id': id,
+        'title': title,
+        'overview': overview,
+        'year': year,
+        'rating': rating,
+        'category': category
+    })
+
+    return movies
+
+#Usando PUT
+@app.put("/movies/{id}", tags=["Movies"])
+def update_movie(id: int, title: str = Body(), overview: str = Body(), year: int = Body(), rating: float = Body(), 
+    category: str = Body()):
+    for movie in movies:
+        if movie["id"] == id:
+            movie['title'] = title
+            movie['overview'] = overview
+            movie['year'] = year
+            movie['rating'] = rating,
+            movie['category'] = category
+            return movies
+    
+    return "Error: No existe la película"
+
+#Usando DELETE
+@app.delete("/movies/{id}", tags=["Movies"])
+def delete_movie(id: int):
+    for movie in movies:
+        if movie["id"] == int(id):
+            movies.remove(movie)
+            return movies
+
+    return "Error: No existe la película"
