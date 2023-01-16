@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Body, Path, Query
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, List
 
 app = FastAPI()
 
@@ -25,6 +25,11 @@ class Movie(BaseModel):
                 "category": "Ciencia Ficción"
             }
         }
+
+class Response_movie(BaseModel):
+    message: str
+    data: Optional[Movie]
+
 
 movies = [
     {
@@ -67,29 +72,29 @@ def contact():
     """)
 
 #Metodo GET
-@app.get("/movies", tags=["Movies"])
-def get_movies():
-    return movies
+@app.get("/movies", tags=["Movies"], response_model = List[Movie], status_code=200)
+def get_movies() -> List[Movie]:
+    return JSONResponse(status_code=200, content=movies)
 
 #Usando paths
-@app.get("/movies/{id}", tags=["Movies"])
-def get_movie(id: int = Path(le=2000, gt=0)):
+@app.get("/movies/{id}", tags=["Movies"], response_model = Movie, status_code=200)
+def get_movie(id: int = Path(le=2000, gt=0)) -> Movie:
     finded_movie = list(filter(lambda mov: mov["id"] == id, movies))
-    return "No se encontró la película" if not finded_movie else finded_movie[0]
+    return JSONResponse(content={"Error": "No se encontró la película"}, status_code=404) if not finded_movie else JSONResponse(content=finded_movie[0], status_code=200)
 
 #Usando querys
-@app.get("/movies/", tags=["Movies"])
-def get_movies_by_category(category: str = Query(min_length = 3, max_length = 30)):
+@app.get("/movies/", tags=["Movies"], response_model = List[Movie], status_code=200)
+def get_movies_by_category(category: str = Query(min_length = 3, max_length = 30)) -> List[Movie]:
     finded_movie = list(filter(lambda mov: mov["category"] == category, movies))
-    return "No existe esa categoría" if not finded_movie else finded_movie
+    return JSONResponse(content={"Error": "No existe esa categoría"}, status_code=404) if not finded_movie else JSONResponse(content=finded_movie, status_code=200)
 
 #Usando POST
-@app.post("/movies", tags=["Movies"])
-def set_movie(movie: Movie = Body()):
+@app.post("/movies", tags=["Movies"], response_model = Response_movie, status_code=201)
+def set_movie(movie: Movie = Body()) -> Response_movie:
     finded_movie = list(filter(lambda mov: mov["id"] == movie.id, movies))
     
     if finded_movie:
-        return "Error: Ya existe la película"
+        return JSONResponse(content={"Error": "Ya existe la película"}, status_code=409)
     
     movies.append({
         'id': movie.id,
@@ -100,11 +105,17 @@ def set_movie(movie: Movie = Body()):
         'category': movie.category
     })
 
-    return movies
+    return JSONResponse(
+        content = {
+            "message":"Se ha agregado un nuevo registro",
+            "data": movies[-1]
+        }, 
+        status_code=201
+    )
 
 #Usando PUT
-@app.put("/movies/{id}", tags=["Movies"])
-def update_movie(id: int, movie: Movie = Body()):
+@app.put("/movies/{id}", tags=["Movies"], response_model = dict, status_code=200)
+def update_movie(id: int, movie: Movie = Body()) -> dict:
     for mov in movies:
         if mov["id"] == id:
             mov['title'] = movie.title
@@ -112,16 +123,28 @@ def update_movie(id: int, movie: Movie = Body()):
             mov['year'] = movie.year
             mov['rating'] = movie.rating
             mov['category'] = movie.category
-            return movies
+            return JSONResponse(
+                content={
+                    "message": "Se ha actualizado un registro",
+                    "data": movies[id - 1]
+                },
+                status_code=200
+            )
     
-    return "Error: No existe la película"
+    return JSONResponse(content={"Error": "No existe la película"}, status_code=404)
 
 #Usando DELETE
-@app.delete("/movies/{id}", tags=["Movies"])
-def delete_movie(id: int):
+@app.delete("/movies/{id}", tags=["Movies"], response_model = dict, status_code=200)
+def delete_movie(id: int) -> dict:
     for movie in movies:
         if movie["id"] == int(id):
+            movie_deleted = movie
             movies.remove(movie)
-            return movies
+            return JSONResponse(
+                content={
+                    "message": "Se ha eliminado un registro",
+                    "data": movie_deleted
+                }, status_code=200
+            )
 
-    return "Error: No existe la película"
+    return JSONResponse(content={"Error": "No existe la película"}, status_code=404)
