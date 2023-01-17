@@ -101,7 +101,7 @@ def contact():
     """)
 
 #Metodo GET
-@app.get("/movies", tags=["Movies"], response_model = List[Movie], status_code=200, dependencies=[Depends(JWTBearer)])
+@app.get("/movies", tags=["Movies"], response_model = List[Movie], status_code=200, dependencies=[Depends(JWTBearer())])
 def get_movies() -> List[Movie]:
     return JSONResponse(status_code=200, content=movies)
 
